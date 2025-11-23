@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ResWrapper<T> {
+pub struct ResWrapper<T = ()> {
     pub code: u8,
     pub msg: String,
     pub data: Option<T>,

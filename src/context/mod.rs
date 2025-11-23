@@ -1,3 +1,4 @@
+pub mod appstate;
 pub mod jamerr;
 pub mod res_wrapper;
 

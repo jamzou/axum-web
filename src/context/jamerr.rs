@@ -22,8 +22,8 @@ impl IntoResponse for AppErr {
             AppErr::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
             _ => StatusCode::OK,
         };
-        let res: ResWrapper<String> = match self {
-            AppErr::ParamError(msg) => ResWrapper::fail(res_code::PARAM_ERROR, msg),
+        let res = match self {
+            AppErr::ParamError(msg) => <ResWrapper>::fail(res_code::PARAM_ERROR, msg),
             AppErr::AuthError(msg) => ResWrapper::fail(res_code::AUTH_ERROR, msg),
             AppErr::BizError(msg) => ResWrapper::fail(res_code::BIZ_ERROR, msg),
             AppErr::Other(e) => ResWrapper::fail(res_code::OTHER, e.to_string()),
