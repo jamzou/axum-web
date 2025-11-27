@@ -8,4 +8,5 @@ mod res_code {
     pub const AUTH_ERROR: u8 = 2;
     pub const BIZ_ERROR: u8 = 3;
     pub const OTHER: u8 = 4;
+    pub const DB_ERROR: u8 = 5;
 }

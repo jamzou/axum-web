@@ -2,7 +2,10 @@ pub mod context;
 pub mod controller;
 pub mod dao;
 pub mod db;
+pub mod redisconfig;
 pub mod domain;
+
+use std::env;
 
 use axum::{routing::post, Router};
 use dotenvy::dotenv;
@@ -46,8 +49,9 @@ async fn main() {
         .init();
 
     let pool = db::establish_conn().await;
+    let redis_client = redisconfig::init_redis().await;
     let user_dao = UserDaoImpl::new(pool.clone());
-    let appstate = AppState::new(pool, Box::new(user_dao));
+    let appstate = AppState::new(pool, user_dao, redis_client);
 
     // 创建用户相关路由组
     let user_routes = Router::new()
@@ -66,8 +70,10 @@ async fn main() {
         .layer(TraceLayer::new_for_http())
         .with_state(appstate);
 
-    // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    // run our app with hyper, default 8080 listening globally on port 3000
+    let port = env::var("PORT").unwrap_or("8080".to_string());
+    let addr = format!("0.0.0.0:{}", port);
+    let listener = tokio::net::TcpListener::bind(addr)
         .await
         .unwrap();
     let addr = listener.local_addr().unwrap();

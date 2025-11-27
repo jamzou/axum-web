@@ -12,6 +12,8 @@ pub enum AppErr {
     AuthError(String),
     ///业务错误
     BizError(String),
+    ///数据库错误
+    DbError(String),
     ///其他错误
     Other(anyhow::Error),
 }
@@ -26,6 +28,7 @@ impl IntoResponse for AppErr {
             AppErr::ParamError(msg) => <ResWrapper>::fail(res_code::PARAM_ERROR, msg),
             AppErr::AuthError(msg) => ResWrapper::fail(res_code::AUTH_ERROR, msg),
             AppErr::BizError(msg) => ResWrapper::fail(res_code::BIZ_ERROR, msg),
+            AppErr::DbError(msg) => ResWrapper::fail(res_code::DB_ERROR, msg),
             AppErr::Other(e) => ResWrapper::fail(res_code::OTHER, e.to_string()),
         };
         (http_code, res).into_response()

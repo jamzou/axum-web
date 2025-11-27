@@ -17,7 +17,7 @@ pub trait UserDao: Send + Sync {
     async fn update_user(&self, user: &CreateUser) -> Result<u32, AppErr>;
     async fn delete_user(&self, id: u32) -> Result<u32, AppErr>;
 }
-
+#[derive(Clone)]
 pub struct UserDaoImpl {
     pool: Pool<MySql>, //克隆pool不会克隆连接池
 }

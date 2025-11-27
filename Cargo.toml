@@ -27,3 +27,4 @@ chrono = { version = "0.4.26", features = ["serde"] }
 # 错误处理
 anyhow = "1.0"
 async-trait = "0.1.89"
+redis = { version = "0.32.7", features = ["tokio-comp"] }
