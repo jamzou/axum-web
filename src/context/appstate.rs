@@ -1,19 +1,21 @@
 use std::sync::{Arc, atomic::AtomicUsize};
 
-use sqlx::{MySql, Pool};
+use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::MysqlConnection;
+
 
 use crate::{dao::UserDao, redisconfig::RedisTemplate};
 
 #[derive(Clone)]
 pub struct AppState<T> where T: UserDao + Send + Sync {
-    pub pool: Pool<MySql>,
+    pub pool: Pool<ConnectionManager<MysqlConnection>>,
     pub user_dao: Arc<T>,
     pub save_count: Arc<AtomicUsize>,
     pub redis_client: Arc<RedisTemplate>,
 }
 
 impl<T> AppState<T> where T: UserDao + Send + Sync {
-    pub fn new(pool: Pool<MySql>, user_dao: T, redis_client: RedisTemplate) -> Self {
+    pub fn new(pool: Pool<ConnectionManager<MysqlConnection>>, user_dao: T, redis_client: RedisTemplate) -> Self {
         Self {
             pool,
             user_dao: Arc::new(user_dao),

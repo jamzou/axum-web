@@ -4,6 +4,8 @@ pub mod dao;
 pub mod db;
 pub mod redisconfig;
 pub mod domain;
+pub mod schema;
+extern crate diesel;
 
 use std::env;
 

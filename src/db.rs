@@ -1,21 +1,16 @@
-use sqlx::mysql::MySqlPoolOptions;
-use sqlx::{MySql, Pool};
 use std::env;
-use std::time::Duration;
+use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::MysqlConnection;
+type DbPool = Pool<ConnectionManager<MysqlConnection>>;
 
-pub async fn establish_conn() -> Pool<MySql> {
+pub async fn establish_conn() -> DbPool {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be setted ");
-    let max_conn = 10;
-    let min_conn = 5;
-    let timeout = 3;
-
-    let error_string = format!("connot connect to mysql {}", database_url);
-    let pool = MySqlPoolOptions::new()
-        .max_connections(max_conn)
-        .min_connections(min_conn)
-        .acquire_timeout(Duration::from_secs(timeout))
-        .connect(&database_url)
-        .await
-        .expect(error_string.as_str());
+    let manager = ConnectionManager::<MysqlConnection>::new(database_url);
+    
+    let pool = Pool::builder()
+        .max_size(20) // 最大连接数
+        .min_idle(Some(5)) // 最小空闲连接数
+        .build(manager)
+        .expect("Failed to create pool");
     pool
 }

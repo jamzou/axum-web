@@ -1,5 +1,9 @@
 use async_trait::async_trait;
-use sqlx::{MySql, Pool};
+use diesel::query_dsl::methods::{FilterDsl, FindDsl, SelectDsl};
+use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::{ExpressionMethods, MysqlConnection, OptionalExtension, RunQueryDsl, SelectableHelper};
+use crate::schema;
+use schema::mo_app_user::dsl::*;
 
 use crate::{
     context::jamerr::AppErr,
@@ -19,81 +23,109 @@ pub trait UserDao: Send + Sync {
 }
 #[derive(Clone)]
 pub struct UserDaoImpl {
-    pool: Pool<MySql>, //克隆pool不会克隆连接池
+    pool: Pool<ConnectionManager<MysqlConnection>>, //克隆pool不会克隆连接池
 }
 #[async_trait]
 impl UserDao for UserDaoImpl {
-    async fn query_user_by_id(&self, id: u32) -> Result<Option<User>, AppErr> {
-        let user = sqlx::query_as("SELECT * FROM mo_app_user where id = ?")
-            .bind(id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(|err| {
-                error!("query_user_by_id Database error: {:?}", err);
-                anyhow!(err)
-            })?;
+    async fn query_user_by_id(&self, uid: u32) -> Result<Option<User>, AppErr> {
+        let mut conn = self.pool.get().map_err(|e| {
+            error!("Failed to get connection from pool: {:?}", e);
+            anyhow!(e)
+        })?;
+        //使用diesel根据id查询
+        let user = mo_app_user
+        .filter(id.eq(uid))
+        .first::<User>(&mut conn)
+        .optional() // 使用 optional 来处理查不到的情况
+        .map_err(|err| {
+            error!("query_user_by_id database error: {:?}", err);
+            anyhow!(err)
+        })?;
         Ok(user)
     }
 
     async fn get_all_users(&self) -> Result<Vec<User>, AppErr> {
-        let users = sqlx::query_as("SELECT * FROM mo_app_user")
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|err| {
-                error!("get_all_users Database error: {:?}", err);
-                anyhow!(err)
-            })?;
+        let mut conn = self.pool.get().map_err(|e| {
+            error!("Failed to get connection from pool: {:?}", e);
+            anyhow!(e)
+        })?;
+        let users = mo_app_user
+        .select(User::as_select())
+        .load::<User>(&mut conn)
+        .map_err(|err| {
+            error!("get_all_users database error: {:?}", err);
+            anyhow!(err)
+        })?;
         Ok(users)
     }
 
     async fn add_user(&self, user: &CreateUser) -> Result<u32, AppErr> {
-        let r = sqlx::query("INSERT INTO mo_app_user (emp_id, user_name, age, birthday, create_time) VALUES (?, ?, ?, ?, NOW())")
-        .bind(user.emp_id.clone())
-        .bind(user.user_name.clone())
-        .bind(user.age)
-        .bind(user.birthday.clone())
-        .execute(&self.pool)
-        .await
-        .map_err(|err| {
-            error!("add_user Database error: {:?}", err);
-            anyhow!(err)
+        let mut conn = self.pool.get().map_err(|e| {
+            error!("Failed to get connection from pool: {:?}", e);
+            anyhow!(e)
         })?;
-        Ok(r.last_insert_id() as u32)
+
+        diesel::insert_into(mo_app_user)
+            .values(user)
+            .execute(&mut conn)
+            .map_err(|err| {
+                error!("Database insert error: {:?}", err);
+                anyhow!(err)
+            })?;
+        #[derive(diesel::prelude::QueryableByName)]
+        struct IdResult {
+            #[diesel(sql_type = diesel::sql_types::Unsigned<diesel::sql_types::Integer>)]
+            uid: u32,
+        }
+        let last_id: u32 = diesel::sql_query("SELECT LAST_INSERT_ID() AS uid")
+        .load::<IdResult>(&mut conn)
+        .map_err(|err| {
+            error!("Failed to fetch last insert id: {:?}", err);
+            anyhow!(err)
+        })?
+        .pop()
+        .expect("Expected one result from LAST_INSERT_ID()")
+        .uid;
+        Ok(last_id)
     }
 
     async fn update_user(&self, user: &CreateUser) -> Result<u32, AppErr> {
-        let id = user.id.ok_or(anyhow!("id is null"))?;
-        let r = sqlx::query(
-        "update mo_app_user set emp_id=?, user_name = ?, age=?, birthday=?,update_time=NOW() where id = ?",
-        )
-        .bind(user.emp_id.clone())
-        .bind(user.user_name.clone())
-        .bind(user.age)
-        .bind(user.birthday.clone())
-        .bind(id)
-        .execute(&self.pool)
-        .await
-        .map_err(|err| {
-            error!("update_user Database error: {}", err);
-            anyhow!(err)
+        let mut conn = self.pool.get().map_err(|e| {
+            error!("Failed to get connection from pool: {:?}", e);
+            anyhow!(e)
         })?;
-        Ok(r.rows_affected() as u32)
-    }
-
-    async fn delete_user(&self, id: u32) -> Result<u32, AppErr> {
-        let r = sqlx::query("DELETE FROM mo_app_user where id = ?")
-            .bind(id)
-            .execute(&self.pool)
-            .await
+        if let None = user.id {
+            return Err(AppErr::ParamError("id is required".to_owned()));
+        }
+        let updated_rows = diesel::update(mo_app_user.find(user.id.expect("unkown err"))) // 假设 CreateUser 包含 id 字段
+            .set(user)
+            .execute(&mut conn)
             .map_err(|err| {
-                error!("delete_user Database error: {}", err);
+                error!("Database update error: {:?}", err);
                 anyhow!(err)
             })?;
-        Ok(r.rows_affected() as u32)
+
+        Ok(updated_rows as u32)
+    }
+
+    async fn delete_user(&self, uid: u32) -> Result<u32, AppErr> {
+        let mut conn = self.pool.get().map_err(|e| {
+            error!("Failed to get connection from pool: {:?}", e);
+            anyhow!(e)
+        })?;
+
+        let deleted_rows = diesel::delete(mo_app_user.filter(id.eq(uid)))
+            .execute(&mut conn)
+            .map_err(|err| {
+                error!("Database delete error: {:?}", err);
+                anyhow!(err)
+            })?;
+
+        Ok(deleted_rows as u32)
     }
 }
 impl UserDaoImpl {
-    pub fn new(pool: Pool<MySql>) -> Self {
+    pub fn new(pool: Pool<ConnectionManager<MysqlConnection>>) -> Self {
         UserDaoImpl { pool }
     }
 }

@@ -10,17 +10,17 @@ POST {{host}}/api/user/query_user_by_id HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
 User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36
 
-id=6
+id=9
 
 ### 新增用户
 POST {{host}}/api/user/add_user HTTP/1.1
 Content-Type: application/json
 
 {
-    "empId": "097829",
-    "userName": "zouyuejian11",
-    "age": 15,
-    "birthday": "2021-01-01"
+    "empId": "12072329",
+    "userName": "diesel add3",
+    "age": 16,
+    "birthday": "2022-01-12"
 }
 
 ### 更新用户
@@ -28,15 +28,15 @@ POST {{host}}/api/user/update_user HTTP/1.1
 Content-Type: application/json
 
 {
-    "id": 6,
-    "empId": "097829",
-    "userName": "zouyuejian11",
-    "age": 16,
-    "birthday": "2021-02-01"
+    "id": 7,
+    "empId": "120722",
+    "userName": "diesel update1",
+    "age": 17,
+    "birthday": "2021-02-02"
 }
 
 ### 删除用户
 POST {{host}}/api/user/delete_user HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
 
-id=6
+id=5

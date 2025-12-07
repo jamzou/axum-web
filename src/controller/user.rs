@@ -19,13 +19,6 @@ pub async fn add_user<T:UserDao>(
     Ok(ResWrapper::success(r))
 }
 
-// pub async fn query_user(State(pool): State<Pool<MySql>>) -> Result<ResWrapper<Vec<User>>, AppErr> {
-//     let users = sqlx::query_as("SELECT * FROM mo_app_user")
-//         .fetch_all(&pool)
-//         .await
-//         .map_err(|err| anyhow!(err))?;
-//     Ok(ResWrapper::success(users))
-// }
 
 pub async fn query_user<T:UserDao>(State(appstate): State<AppState<T>>) -> Result<ResWrapper<Vec<User>>, AppErr> {
     let users = appstate.user_dao.get_all_users().await?;
