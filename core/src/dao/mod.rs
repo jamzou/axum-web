@@ -1,0 +1,113 @@
+use async_trait::async_trait;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
+use anyhow::anyhow;
+use tracing::error;
+
+use crate::entity::prelude::*;
+
+#[async_trait]
+pub trait UserDao: Send + Sync {
+    async fn query_user_by_id(&self, id: u32) -> anyhow::Result<Option<User>>;
+    async fn get_all_users(&self) -> anyhow::Result<Vec<User>>;
+    async fn add_user(&self, user: &CreateUser) -> anyhow::Result<u32>;
+    async fn update_user(&self, user: &CreateUser) -> anyhow::Result<u32>;
+    async fn delete_user(&self, id: u32) -> anyhow::Result<u32>;
+}
+
+#[derive(Clone)]
+pub struct UserDaoImpl {
+    db: DatabaseConnection,
+}
+
+#[async_trait]
+impl UserDao for UserDaoImpl {
+    async fn query_user_by_id(&self, uid: u32) -> anyhow::Result<Option<User>> {
+        let user = MoAppUser::find_by_id(uid)
+            .one(&self.db)
+            .await
+            .map_err(|err| {
+                error!("query_user_by_id database error: {:?}", err);
+                anyhow!(err)
+            })?;
+        Ok(user)
+    }
+
+    async fn get_all_users(&self) -> anyhow::Result<Vec<User>> {
+        let users = MoAppUser::find()
+            .all(&self.db)
+            .await
+            .map_err(|err| {
+                error!("get_all_users database error: {:?}", err);
+                anyhow!(err)
+            })?;
+        Ok(users)
+    }
+
+    async fn add_user(&self, user: &CreateUser) -> anyhow::Result<u32> {
+        let active_model = MoAppUserActiveModel {
+            emp_id: Set(user.emp_id.clone()),
+            user_name: Set(user.user_name.clone()),
+            age: Set(Some(user.age)),
+            birthday: Set(Some(user.birthday.clone())),
+            ..Default::default()
+        };
+
+        let result = active_model.insert(&self.db).await.map_err(|err| {
+            error!("Database insert error: {:?}", err);
+            anyhow!(err)
+        })?;
+
+        Ok(result.id)
+    }
+
+    async fn update_user(&self, user: &CreateUser) -> anyhow::Result<u32> {
+        if user.id.is_none() {
+            return Ok(0);
+        }
+
+        let uid = user.id.unwrap();
+
+        let existing = MoAppUser::find_by_id(uid)
+            .one(&self.db)
+            .await
+            .map_err(|err| {
+                error!("Database query error: {:?}", err);
+                anyhow!(err)
+            })?;
+
+        if existing.is_none() {
+            return Ok(0);
+        }
+
+        let mut active_model: MoAppUserActiveModel = existing.unwrap().into();
+        active_model.emp_id = Set(user.emp_id.clone());
+        active_model.user_name = Set(user.user_name.clone());
+        active_model.age = Set(Some(user.age));
+        active_model.birthday = Set(Some(user.birthday.clone()));
+
+        active_model.update(&self.db).await.map_err(|err| {
+            error!("Database update error: {:?}", err);
+            anyhow!(err)
+        })?;
+
+        Ok(1)
+    }
+
+    async fn delete_user(&self, uid: u32) -> anyhow::Result<u32> {
+        let result = MoAppUser::delete_by_id(uid)
+            .exec(&self.db)
+            .await
+            .map_err(|err| {
+                error!("Database delete error: {:?}", err);
+                anyhow!(err)
+            })?;
+
+        Ok(result.rows_affected as u32)
+    }
+}
+
+impl UserDaoImpl {
+    pub fn new(db: DatabaseConnection) -> Self {
+        UserDaoImpl { db }
+    }
+}

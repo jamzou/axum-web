@@ -4,17 +4,12 @@ use axum::{
 };
 
 use super::{res_code, res_wrapper::ResWrapper};
-// use tracing::log::error;
+
 pub enum AppErr {
-    ///参数错误
     ParamError(String),
-    ///权限错误
     AuthError(String),
-    ///业务错误
     BizError(String),
-    ///数据库错误
     DbError(String),
-    ///其他错误
     Other(anyhow::Error),
 }
 

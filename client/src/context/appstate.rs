@@ -1,24 +1,23 @@
 use std::sync::{Arc, atomic::AtomicUsize};
 
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::MysqlConnection;
+use tonic::transport::Channel;
 
+use crate::redisconfig::RedisTemplate;
+use grpc_dsl::user::user_service_client::UserServiceClient;
 
-use crate::{dao::UserDao, redisconfig::RedisTemplate};
+pub type GrpcClient = UserServiceClient<Channel>;
 
 #[derive(Clone)]
-pub struct AppState<T> where T: UserDao + Send + Sync {
-    pub pool: Pool<ConnectionManager<MysqlConnection>>,
-    pub user_dao: Arc<T>,
+pub struct AppState {
+    pub grpc_client: GrpcClient,
     pub save_count: Arc<AtomicUsize>,
     pub redis_client: Arc<RedisTemplate>,
 }
 
-impl<T> AppState<T> where T: UserDao + Send + Sync {
-    pub fn new(pool: Pool<ConnectionManager<MysqlConnection>>, user_dao: T, redis_client: RedisTemplate) -> Self {
+impl AppState {
+    pub fn new(grpc_client: GrpcClient, redis_client: RedisTemplate) -> Self {
         Self {
-            pool,
-            user_dao: Arc::new(user_dao),
+            grpc_client,
             save_count: Arc::new(AtomicUsize::new(0)),
             redis_client: Arc::new(redis_client),
         }

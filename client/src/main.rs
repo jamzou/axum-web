@@ -1,11 +1,6 @@
 pub mod context;
 pub mod controller;
-pub mod dao;
-pub mod db;
 pub mod redisconfig;
-pub mod domain;
-pub mod schema;
-extern crate diesel;
 
 use std::env;
 
@@ -16,46 +11,84 @@ use tracing::info;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt::Layer, EnvFilter};
+use tonic::transport::Channel;
+use reqwest::Client;
+
+type GrpcClient = grpc_dsl::user::user_service_client::UserServiceClient<Channel>;
 
 use crate::context::appstate::AppState;
 use crate::controller::user::{add_user, delete_user, query_user, query_user_by_id, update_user};
-use crate::dao::UserDaoImpl;
+
+#[derive(serde::Deserialize, Clone)]
+struct ConsulService {
+    #[serde(rename = "Address")]
+    address: String,
+    #[serde(rename = "Port")]
+    port: u16,
+}
+
+#[derive(serde::Deserialize)]
+struct ConsulServiceEntry {
+    #[serde(rename = "Service")]
+    service: ConsulService,
+}
+
+async fn discover_core_addr_from_consul() -> Option<String> {
+    let consul_addr = env::var("CONSUL_HTTP_ADDR").unwrap_or_else(|_| "http://127.0.0.1:8500".to_string());
+    let url = format!(
+        "{}/v1/health/service/core-user?passing=true",
+        consul_addr.trim_end_matches('/')
+    );
+
+    let resp = Client::new().get(url).send().await.ok()?;
+    let entries: Vec<ConsulServiceEntry> = resp.json().await.ok()?;
+    let service = entries.first()?.service.clone();
+    let address = if service.address.is_empty() {
+        "127.0.0.1".to_string()
+    } else {
+        service.address
+    };
+    Some(format!("http://{}:{}", address, service.port))
+}
 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    // initialize tracing
-    // 创建每日轮转的日志文件
+
     let file_appender = RollingFileAppender::new(
         Rotation::DAILY,
-        "./logs",          // 日志文件目录
-        "application.log", // 日志文件前缀
+        "./logs",
+        "application.log",
     );
 
-    // 创建文件层
     let file_layer = Layer::new()
         .with_writer(file_appender)
         .with_ansi(false)
         .with_line_number(true);
 
-    // 创建控制台层
     let console_layer = Layer::new()
         .with_writer(std::io::stderr)
         .with_line_number(true);
 
-    // 初始化订阅器
     tracing_subscriber::registry()
         .with(EnvFilter::from_default_env())
         .with(file_layer)
         .with(console_layer)
         .init();
 
-    let pool = db::establish_conn().await;
-    let redis_client = redisconfig::init_redis().await;
-    let user_dao = UserDaoImpl::new(pool.clone());
-    let appstate = AppState::new(pool, user_dao, redis_client);
+    let grpc_addr = if let Ok(addr) = env::var("CORE_GRPC_ADDR") {
+        addr
+    } else if let Some(addr) = discover_core_addr_from_consul().await {
+        addr
+    } else {
+        "http://127.0.0.1:50051".to_string()
+    };
+    let channel = Channel::from_shared(grpc_addr).unwrap().connect().await.unwrap();
+    let grpc_client = GrpcClient::new(channel);
 
-    // 创建用户相关路由组
+    let redis_client = redisconfig::init_redis().await;
+    let appstate = AppState::new(grpc_client, redis_client);
+
     let user_routes = Router::new()
         .route("/query_user", post(query_user))
         .route("/add_user", post(add_user))
@@ -63,22 +96,19 @@ async fn main() {
         .route("/update_user", post(update_user))
         .route("/query_user_by_id", post(query_user_by_id));
 
-    // 创建 API 路由组
     let api_routes = Router::new().nest("/user", user_routes);
 
-    // 主应用路由
     let app = Router::new()
         .nest("/api", api_routes)
         .layer(TraceLayer::new_for_http())
         .with_state(appstate);
 
-    // run our app with hyper, default 8080 listening globally on port 3000
     let port = env::var("PORT").unwrap_or("8080".to_string());
     let addr = format!("0.0.0.0:{}", port);
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .unwrap();
     let addr = listener.local_addr().unwrap();
-    info!("server listening on {}", addr);
+    info!("client http server listening on {}", addr);
     axum::serve(listener, app).await.unwrap();
 }

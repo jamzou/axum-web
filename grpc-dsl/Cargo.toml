@@ -1,0 +1,13 @@
+[package]
+name = "grpc-dsl"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tonic = { version = "0.11", features = ["transport"] }
+prost = "0.12"
+prost-types = "0.12"
+serde = { version = "1.0", features = ["derive"] }
+
+[build-dependencies]
+tonic-build = "0.11"

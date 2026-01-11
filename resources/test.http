@@ -1,4 +1,4 @@
-@host=http://localhost:3000
+@host=http://localhost:8080
 
 ### 查询所有用户
 POST {{host}}/api/user/query_user HTTP/1.1
@@ -17,8 +17,8 @@ POST {{host}}/api/user/add_user HTTP/1.1
 Content-Type: application/json
 
 {
-    "empId": "12072329",
-    "userName": "diesel add3",
+    "empId": "01112329",
+    "userName": "diesel add4",
     "age": 16,
     "birthday": "2022-01-12"
 }
