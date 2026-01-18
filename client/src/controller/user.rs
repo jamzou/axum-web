@@ -1,20 +1,23 @@
 use axum::{extract::State, Form, Json};
 use serde::Deserialize;
-use tracing::info;
 use tonic::Request;
+use tracing::info;
 
-use crate::context::{appstate::AppState, jamerr::AppErr, res_wrapper::ResWrapper};
 use crate::context::appstate::GrpcClient;
-use grpc_dsl::user::{CreateUserRequest, IdRequest};
+use crate::context::{appstate::AppState, jamerr::AppErr, res_wrapper::ResWrapper};
+use grpc_dsl::user::{AddUserRequest, IdRequest};
 
 pub async fn add_user(
     State(appstate): State<AppState>,
     Json(payload): Json<HttpCreateUser>,
 ) -> Result<ResWrapper<u32>, AppErr> {
-    info!("add user via gRPC, payload: {}", serde_json::to_string(&payload).unwrap_or_default());
+    info!(
+        "add user via gRPC, payload: {}",
+        serde_json::to_string(&payload).unwrap_or_default()
+    );
 
     let mut client: GrpcClient = appstate.grpc_client.clone();
-    let req = CreateUserRequest {
+    let req = AddUserRequest {
         id: payload.id.unwrap_or(0),
         emp_id: payload.emp_id,
         user_name: payload.user_name,
@@ -33,7 +36,9 @@ pub async fn add_user(
     Ok(ResWrapper::success(id))
 }
 
-pub async fn query_user(State(appstate): State<AppState>) -> Result<ResWrapper<Vec<grpc_dsl::user::UserData>>, AppErr> {
+pub async fn query_user(
+    State(appstate): State<AppState>,
+) -> Result<ResWrapper<Vec<grpc_dsl::user::UserData>>, AppErr> {
     let mut client: GrpcClient = appstate.grpc_client.clone();
     let response = client
         .get_all_users(Request::new(grpc_dsl::user::Empty {}))
@@ -105,7 +110,9 @@ pub async fn delete_user(
 
     let redis_client = appstate.redis_client.clone();
     tokio::spawn(async move {
-        let _ = redis_client.redis_del(&format!("user:{}", id_param.id)).await;
+        let _ = redis_client
+            .redis_del(&format!("user:{}", id_param.id))
+            .await;
         info!("delete user:{}", id_param.id);
     });
 
@@ -121,7 +128,7 @@ pub async fn update_user(
     }
 
     let mut client: GrpcClient = appstate.grpc_client.clone();
-    let req = CreateUserRequest {
+    let req = AddUserRequest {
         id: user.id.unwrap(),
         emp_id: user.emp_id,
         user_name: user.user_name,

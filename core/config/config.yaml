@@ -1,0 +1,21 @@
+db:
+  url: mysql://root:my-secret-pw@192.168.5.54:3306/mo_office?ssl-mode=DISABLED
+  max_connections: 20
+  min_connections: 5
+  connect_timeout: 5 #连接超时秒
+  acquire_timeout: 5 #获取连接超时秒
+  idle_timeout: 300 #空闲时间秒
+  max_lifetime: 3600 #秒
+  sql_log: true
+#启动配置
+server:
+  host: 127.0.0.1
+  port: 50051
+consul:
+  address: http://127.0.0.1:8500
+
+#日志配置
+log:
+  level: info
+  directory: ./logs
+  file: core.log

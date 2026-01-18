@@ -2,10 +2,9 @@ syntax = "proto3";
 
 package user;
 
-import "google/protobuf/empty.proto";
 
-message CreateUserRequest {
-  uint32 id = 1;           // 0 表示新建，其余表示更新
+message AddUserRequest {
+  uint32 id = 1; // 0 表示新建，其余表示更新
   string emp_id = 2;
   string user_name = 3;
   uint32 age = 4;
@@ -22,6 +21,8 @@ message UserData {
   string user_name = 3;
   uint32 age = 4;
   string birthday = 5;
+  int64 create_time = 6;
+  int64 update_time = 7;
 }
 
 message UserListResponse {
@@ -44,9 +45,9 @@ message IdResponse {
 message Empty {}
 
 service UserService {
-  rpc AddUser (CreateUserRequest) returns (IdResponse);
-  rpc GetAllUsers (Empty) returns (UserListResponse);
-  rpc GetUserById (IdRequest) returns (UserResponse);
-  rpc DeleteUser (IdRequest) returns (RowsAffected);
-  rpc UpdateUser (CreateUserRequest) returns (RowsAffected);
+  rpc AddUser(AddUserRequest) returns (IdResponse);
+  rpc GetAllUsers(Empty) returns (UserListResponse);
+  rpc GetUserById(IdRequest) returns (UserResponse);
+  rpc DeleteUser(IdRequest) returns (RowsAffected);
+  rpc UpdateUser(AddUserRequest) returns (RowsAffected);
 }

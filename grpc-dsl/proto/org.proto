@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package org;
+
+
+message AddOrgRequest {
+  uint32 id = 1; // 0 表示新建，其余表示更新
+  string org_code = 2;
+  string org_name = 3;
+}
+
+message IdRequest {
+  uint32 id = 1;
+}
+
+message OrgData {
+  uint32 id = 1;
+  string org_code = 2;
+  string org_name = 3;
+  int64 update_time = 4;
+}
+
+message OrgListResponse {
+  repeated OrgData orgs = 1;
+}
+
+message OrgResponse {
+  bool found = 1;
+  OrgData org = 2;
+}
+
+message RowsAffected {
+  uint32 count = 1;
+}
+
+message IdResponse {
+  uint32 id = 1;
+}
+
+message Empty {}
+
+service OrgService {
+  rpc AddOrg(AddOrgRequest) returns (IdResponse);
+  rpc GetAllOrgs(Empty) returns (OrgListResponse);
+  rpc GetOrgById(IdRequest) returns (OrgResponse);
+  rpc DeleteOrg(IdRequest) returns (RowsAffected);
+  rpc UpdateOrg(AddOrgRequest) returns (RowsAffected);
+}

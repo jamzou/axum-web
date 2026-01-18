@@ -1,9 +1,12 @@
+use anyhow::anyhow;
 use async_trait::async_trait;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
-use anyhow::anyhow;
 use tracing::error;
 
 use crate::entity::prelude::*;
+pub mod org;
+pub use org::OrgDao;
+pub use org::OrgDaoImpl;
 
 #[async_trait]
 pub trait UserDao: Send + Sync {
@@ -33,13 +36,10 @@ impl UserDao for UserDaoImpl {
     }
 
     async fn get_all_users(&self) -> anyhow::Result<Vec<User>> {
-        let users = MoAppUser::find()
-            .all(&self.db)
-            .await
-            .map_err(|err| {
-                error!("get_all_users database error: {:?}", err);
-                anyhow!(err)
-            })?;
+        let users = MoAppUser::find().all(&self.db).await.map_err(|err| {
+            error!("get_all_users database error: {:?}", err);
+            anyhow!(err)
+        })?;
         Ok(users)
     }
 

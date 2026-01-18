@@ -1,53 +1,26 @@
-mod db;
+mod config;
 mod dao;
+mod db;
 mod entity;
-
-use std::env;
-
-use dotenvy::dotenv;
+mod service;
+use grpc_dsl::org::org_service_server::OrgServiceServer;
+use reqwest::Client;
 use sea_orm::DatabaseConnection;
-use tonic::{transport::Server, Request, Response, Status};
+use service::prelude::*;
+use tonic::transport::Server;
 use tracing::info;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt::Layer, EnvFilter};
-use reqwest::Client;
 
-use crate::dao::{UserDao, UserDaoImpl};
-use crate::entity::prelude::{User as DbUser, CreateUser as DbCreateUser};
-use grpc_dsl::user::user_service_server::{UserService, UserServiceServer};
-use grpc_dsl::user::{CreateUserRequest, IdRequest, IdResponse, RowsAffected, UserData, UserListResponse, UserResponse, Empty};
-
-struct UserServiceImpl<D: UserDao + Send + Sync + 'static> {
-    dao: D,
-}
-
-impl From<DbUser> for UserData {
-    fn from(u: DbUser) -> Self {
-        UserData {
-            id: u.id,
-            emp_id: u.emp_id,
-            user_name: u.user_name,
-            age: u.age.unwrap_or_default() as u32,
-            birthday: u.birthday.unwrap_or_default(),
-        }
-    }
-}
-
-impl From<CreateUserRequest> for DbCreateUser {
-    fn from(req: CreateUserRequest) -> Self {
-        DbCreateUser {
-            id: if req.id == 0 { None } else { Some(req.id) },
-            emp_id: req.emp_id,
-            user_name: req.user_name,
-            age: req.age as u8,
-            birthday: req.birthday,
-        }
-    }
-}
-
-async fn register_with_consul(host: &str, port: u16) -> Result<(), anyhow::Error> {
-    let consul_addr = env::var("CONSUL_HTTP_ADDR").unwrap_or_else(|_| "http://127.0.0.1:8500".to_string());
+use crate::dao::{OrgDao, OrgDaoImpl, UserDao, UserDaoImpl};
+//必须用这个来创建对应的 UserServiceServer
+use grpc_dsl::user::user_service_server::UserServiceServer;
+async fn register_with_consul(
+    consul_addr: &str,
+    host: &str,
+    port: u16,
+) -> Result<(), anyhow::Error> {
     let register_url = format!(
         "{}/v1/agent/service/register",
         consul_addr.trim_end_matches('/')
@@ -75,55 +48,14 @@ async fn register_with_consul(host: &str, port: u16) -> Result<(), anyhow::Error
     Ok(())
 }
 
-#[tonic::async_trait]
-impl<D> UserService for UserServiceImpl<D>
-where
-    D: UserDao + Send + Sync + 'static,
-{
-    async fn add_user(&self, request: Request<CreateUserRequest>) -> Result<Response<IdResponse>, Status> {
-        let req = request.into_inner();
-        let create: DbCreateUser = req.into();
-        let id = self.dao.add_user(&create).await.map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(IdResponse { id }))
-    }
-
-    async fn get_all_users(&self, _request: Request<Empty>) -> Result<Response<UserListResponse>, Status> {
-        let users = self.dao.get_all_users().await.map_err(|e| Status::internal(e.to_string()))?;
-        let users = users.into_iter().map(UserData::from).collect();
-        Ok(Response::new(UserListResponse { users }))
-    }
-
-    async fn get_user_by_id(&self, request: Request<IdRequest>) -> Result<Response<UserResponse>, Status> {
-        let id = request.into_inner().id;
-        let user = self.dao.query_user_by_id(id).await.map_err(|e| Status::internal(e.to_string()))?;
-        match user {
-            Some(u) => Ok(Response::new(UserResponse { found: true, user: Some(UserData::from(u)) })),
-            None => Ok(Response::new(UserResponse { found: false, user: None })),
-        }
-    }
-
-    async fn delete_user(&self, request: Request<IdRequest>) -> Result<Response<RowsAffected>, Status> {
-        let id = request.into_inner().id;
-        let count = self.dao.delete_user(id).await.map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(RowsAffected { count }))
-    }
-
-    async fn update_user(&self, request: Request<CreateUserRequest>) -> Result<Response<RowsAffected>, Status> {
-        let req = request.into_inner();
-        let create: DbCreateUser = req.into();
-        let count = self.dao.update_user(&create).await.map_err(|e| Status::internal(e.to_string()))?;
-        Ok(Response::new(RowsAffected { count }))
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv().ok();
-
+    let config_path = config::get_config_path();
+    let config = config::load_config(&config_path).expect("加载配置文件出错");
     let file_appender = RollingFileAppender::new(
         Rotation::DAILY,
-        "./logs",
-        "core.log",
+        config.log.directory.clone(),
+        config.log.file.clone(),
     );
 
     let file_layer = Layer::new()
@@ -135,27 +67,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_writer(std::io::stderr)
         .with_line_number(true);
 
+    //日志输出级别
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.log.level));
+
     tracing_subscriber::registry()
-        .with(EnvFilter::from_default_env())
+        .with(env_filter)
         .with(file_layer)
         .with(console_layer)
         .init();
 
-    let db: DatabaseConnection = db::establish_conn().await;
+    let db: DatabaseConnection = db::establish_conn(&config).await;
     let user_dao = UserDaoImpl::new(db.clone());
-    let svc = UserServiceImpl { dao: user_dao };
+    let svc = UserServiceImpl::new(user_dao);
 
-    let host = env::var("CORE_SERVICE_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port: u16 = 50051;
-    if let Err(e) = register_with_consul(&host, port).await {
+    let port = config.server.port;
+    use local_ip_address::local_ip;
+    let host = local_ip().expect("获取当前ip失败").to_string();
+    println!("This is my local IP address: {}", host);
+    if let Err(e) = register_with_consul(&config.consul.address, &host, port).await {
         tracing::warn!("failed to register core service in consul: {}", e);
     }
 
-    let addr = format!("0.0.0.0:{}", port).parse()?;
+    let addr = format!("{}:{}", host, port).parse()?;
     info!("gRPC core listening on {}", addr);
 
     Server::builder()
         .add_service(UserServiceServer::new(svc))
+        .add_service(OrgServiceServer::new(OrgServiceImpl::new(OrgDaoImpl::new(db))))
         .serve(addr)
         .await?;
 
