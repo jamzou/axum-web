@@ -1,0 +1,16 @@
+syntax = "proto3";
+package common;
+// 通用请求/响应结构
+message IdRequest {
+  uint32 id = 1;
+}
+
+message IdResponse {
+  uint32 id = 1;
+}
+
+message RowsAffected {
+  uint32 count = 1;
+}
+
+message Empty {}

@@ -1,7 +1,7 @@
 syntax = "proto3";
-
 package user;
-
+import "org.proto";
+import "common.proto";
 
 message AddUserRequest {
   uint32 id = 1; // 0 表示新建，其余表示更新
@@ -11,9 +11,6 @@ message AddUserRequest {
   string birthday = 5;
 }
 
-message IdRequest {
-  uint32 id = 1;
-}
 
 message UserData {
   uint32 id = 1;
@@ -23,6 +20,8 @@ message UserData {
   string birthday = 5;
   int64 create_time = 6;
   int64 update_time = 7;
+  // 👇 嵌套 OrgData
+  org.OrgData org_data = 8;  // 注意：tag number 要唯一（这里用 8）
 }
 
 message UserListResponse {
@@ -34,20 +33,10 @@ message UserResponse {
   UserData user = 2;
 }
 
-message RowsAffected {
-  uint32 count = 1;
-}
-
-message IdResponse {
-  uint32 id = 1;
-}
-
-message Empty {}
-
 service UserService {
-  rpc AddUser(AddUserRequest) returns (IdResponse);
-  rpc GetAllUsers(Empty) returns (UserListResponse);
-  rpc GetUserById(IdRequest) returns (UserResponse);
-  rpc DeleteUser(IdRequest) returns (RowsAffected);
-  rpc UpdateUser(AddUserRequest) returns (RowsAffected);
+  rpc AddUser(AddUserRequest) returns (common.IdResponse);
+  rpc GetAllUsers(common.Empty) returns (UserListResponse);
+  rpc GetUserById(common.IdRequest) returns (UserResponse);
+  rpc DeleteUser(common.IdRequest) returns (common.RowsAffected);
+  rpc UpdateUser(AddUserRequest) returns (common.RowsAffected);
 }

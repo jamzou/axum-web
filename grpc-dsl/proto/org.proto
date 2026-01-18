@@ -1,7 +1,6 @@
 syntax = "proto3";
-
 package org;
-
+import "common.proto";
 
 message AddOrgRequest {
   uint32 id = 1; // 0 表示新建，其余表示更新
@@ -9,9 +8,6 @@ message AddOrgRequest {
   string org_name = 3;
 }
 
-message IdRequest {
-  uint32 id = 1;
-}
 
 message OrgData {
   uint32 id = 1;
@@ -29,20 +25,10 @@ message OrgResponse {
   OrgData org = 2;
 }
 
-message RowsAffected {
-  uint32 count = 1;
-}
-
-message IdResponse {
-  uint32 id = 1;
-}
-
-message Empty {}
-
 service OrgService {
-  rpc AddOrg(AddOrgRequest) returns (IdResponse);
-  rpc GetAllOrgs(Empty) returns (OrgListResponse);
-  rpc GetOrgById(IdRequest) returns (OrgResponse);
-  rpc DeleteOrg(IdRequest) returns (RowsAffected);
-  rpc UpdateOrg(AddOrgRequest) returns (RowsAffected);
+  rpc AddOrg(AddOrgRequest) returns (common.IdResponse);
+  rpc GetAllOrgs(common.Empty) returns (OrgListResponse);
+  rpc GetOrgById(common.IdRequest) returns (OrgResponse);
+  rpc DeleteOrg(common.IdRequest) returns (common.RowsAffected);
+  rpc UpdateOrg(AddOrgRequest) returns (common.RowsAffected);
 }

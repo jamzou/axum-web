@@ -1,8 +1,9 @@
 use crate::entity::prelude::{CreateUser as DbCreateUser, User as DbUser};
 use crate::UserDao;
 use grpc_dsl::user::user_service_server::UserService;
+use grpc_dsl::common::{Empty, IdRequest, IdResponse, RowsAffected};
 use grpc_dsl::user::{
-    AddUserRequest, Empty, IdRequest, IdResponse, RowsAffected, UserData, UserListResponse,
+    AddUserRequest, UserData, UserListResponse,
     UserResponse,
 };
 use tonic::{Request, Response, Status};
@@ -33,6 +34,7 @@ impl From<DbUser> for UserData {
                 .update_time
                 .and_then(|t| Some(t.and_utc().timestamp_millis()))
                 .unwrap_or(0i64),
+            org_data: None,
         }
     }
 }

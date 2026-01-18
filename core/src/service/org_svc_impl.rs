@@ -1,6 +1,7 @@
 use crate::{OrgDao, entity::prelude::Org};
 use chrono::Utc;
-use grpc_dsl::org::{AddOrgRequest, Empty, IdRequest, IdResponse, OrgData, OrgListResponse, OrgResponse, RowsAffected, org_service_server::OrgService};
+use grpc_dsl::common::{Empty, IdRequest, IdResponse, RowsAffected};
+use grpc_dsl::org::{AddOrgRequest, OrgData, OrgListResponse, OrgResponse, org_service_server::OrgService};
 use tonic::{Request, Response, Status};
 
 pub struct OrgServiceImpl<D: OrgDao + Send + Sync + 'static> {

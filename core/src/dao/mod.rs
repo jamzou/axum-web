@@ -15,6 +15,7 @@ pub trait UserDao: Send + Sync {
     async fn add_user(&self, user: &CreateUser) -> anyhow::Result<u32>;
     async fn update_user(&self, user: &CreateUser) -> anyhow::Result<u32>;
     async fn delete_user(&self, id: u32) -> anyhow::Result<u32>;
+    async fn get_user_detail(&self, id: u32) -> anyhow::Result<Option<(User, Org)>>;
 }
 
 #[derive(Clone)]
@@ -103,6 +104,22 @@ impl UserDao for UserDaoImpl {
             })?;
 
         Ok(result.rows_affected as u32)
+    }
+
+    async fn get_user_detail(&self, id: u32) -> anyhow::Result<Option<(User, Org)>> {
+        let result = MoAppUser::find()
+        .filter(MoAppUser::Column::Id.eq(id))
+        .find_also_related(MoAppOrg::Entity)  // 使用 find_also_related
+        .one(&self.db)
+        .await
+        .map_err(|err| {
+            error!("Database query error: {:?}", err);
+            anyhow!(err)
+        })?;
+        match result {
+            Some((user, Some(org))) => Ok(Some((user, org))),
+            _ => Ok(None),
+        }
     }
 }
 
