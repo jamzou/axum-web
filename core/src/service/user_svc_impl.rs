@@ -1,5 +1,4 @@
 use crate::entity::prelude::{CreateUser as DbCreateUser, User as DbUser};
-use crate::entity::mo_app_user::{LoginUser as DbLoginUser, UserInfo as DbUserInfo};
 use crate::utils::password_util;
 use crate::utils::jwt_util;
 use crate::UserDao;

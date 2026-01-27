@@ -97,7 +97,7 @@ pub struct CreateUser {
     pub role: Option<String>,
     pub status: Option<i8>,
 }
-
+#[allow(unused)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginUser {
@@ -105,6 +105,7 @@ pub struct LoginUser {
     pub password: String,
 }
 
+#[allow(unused)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UserInfo {

@@ -6,7 +6,7 @@ use tracing::info;
 use crate::context::appstate::GrpcClient;
 use crate::context::{appstate::AppState, jamerr::AppErr, res_wrapper::ResWrapper};
 use grpc_dsl::user::{AddUserRequest, LoginUserRequest, RegisterUserRequest};
-use grpc_dsl::common::{IdRequest, Empty};
+use grpc_dsl::common::IdRequest;
 
 pub async fn add_user(
     State(appstate): State<AppState>,

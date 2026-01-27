@@ -37,6 +37,7 @@ pub fn generate_access_token(user_id: u32, user_name: String, role: String) -> R
     Ok(token)
 }
 
+#[allow(unused)]
 pub fn verify_token(token: &str) -> Result<Claims> {
     let secret = env::var("JWT_SECRET").unwrap_or_else(|_| "default_secret_key".to_string());
     let validation = Validation::default();
