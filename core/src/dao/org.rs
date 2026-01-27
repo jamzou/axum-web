@@ -42,9 +42,9 @@ impl OrgDao for OrgDaoImpl {
 
     async fn add_org(&self, org: &Org) -> anyhow::Result<u32> {
         let active_model = MoGlOrgActiveModel {
-            org_name: Set(org.org_name.clone()),
-            org_code: Set(org.org_code.clone()),
-            update_time: Set(Some(Utc::now().naive_utc())),
+            name: Set(org.name.clone()),
+            code: Set(org.code.clone()),
+            updated_at: Set(Some(Utc::now().naive_utc())),
             ..Default::default()
         };
 
@@ -70,9 +70,9 @@ impl OrgDao for OrgDaoImpl {
         }
 
         let mut active_model: MoGlOrgActiveModel = existing.unwrap().into();
-        active_model.org_code = Set(org.org_code.clone());
-        active_model.org_name = Set(org.org_name.clone());
-        active_model.update_time = Set(Some(Utc::now().naive_utc()));
+        active_model.code = Set(org.code.clone());
+        active_model.name = Set(org.name.clone());
+        active_model.updated_at = Set(Some(Utc::now().naive_utc()));
 
         active_model.update(&self.db).await.map_err(|err| {
             error!("Database update error: {:?}", err);

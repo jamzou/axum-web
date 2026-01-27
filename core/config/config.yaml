@@ -9,7 +9,6 @@ db:
   sql_log: true
 #启动配置
 server:
-  host: 127.0.0.1
   port: 50051
 consul:
   address: http://127.0.0.1:8500

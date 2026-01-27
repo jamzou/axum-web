@@ -5,7 +5,8 @@ use tracing::info;
 
 use crate::context::appstate::GrpcClient;
 use crate::context::{appstate::AppState, jamerr::AppErr, res_wrapper::ResWrapper};
-use grpc_dsl::user::{AddUserRequest, IdRequest};
+use grpc_dsl::user::{AddUserRequest, LoginUserRequest, RegisterUserRequest};
+use grpc_dsl::common::{IdRequest, Empty};
 
 pub async fn add_user(
     State(appstate): State<AppState>,
@@ -21,8 +22,12 @@ pub async fn add_user(
         id: payload.id.unwrap_or(0),
         emp_id: payload.emp_id,
         user_name: payload.user_name,
-        age: payload.age as u32,
-        birthday: payload.birthday,
+        password: payload.password.clone(),
+        email: payload.email.clone().unwrap_or_default(),
+        phone: payload.phone.clone().unwrap_or_default(),
+        org_id: payload.org_id.unwrap_or(0),
+        role: payload.role.clone().unwrap_or("user".to_string()),
+        status: payload.status.unwrap_or(1) as i32,
     };
 
     let response = client
@@ -41,7 +46,7 @@ pub async fn query_user(
 ) -> Result<ResWrapper<Vec<grpc_dsl::user::UserData>>, AppErr> {
     let mut client: GrpcClient = appstate.grpc_client.clone();
     let response = client
-        .get_all_users(Request::new(grpc_dsl::user::Empty {}))
+        .get_all_users(Request::new(grpc_dsl::common::Empty {}))
         .await
         .map_err(|e| AppErr::Other(e.into()))?;
     let users = response.into_inner().users;
@@ -59,8 +64,12 @@ pub struct HttpCreateUser {
     pub id: Option<u32>,
     pub emp_id: String,
     pub user_name: String,
-    pub age: u8,
-    pub birthday: String,
+    pub password: String,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub org_id: Option<u32>,
+    pub role: Option<String>,
+    pub status: Option<i8>,
 }
 
 pub async fn query_user_by_id(
@@ -119,6 +128,78 @@ pub async fn delete_user(
     Ok(ResWrapper::success(count))
 }
 
+#[derive(Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoginRequest {
+    pub user_name: String,
+    pub password: String,
+}
+
+pub async fn login(
+    State(appstate): State<AppState>,
+    Json(payload): Json<LoginRequest>,
+) -> Result<ResWrapper<grpc_dsl::user::LoginResponse>, AppErr> {
+    info!(
+        "login user via gRPC, username: {}",
+        payload.user_name
+    );
+
+    let mut client: GrpcClient = appstate.grpc_client.clone();
+    let req = LoginUserRequest {
+        user_name: payload.user_name,
+        password: payload.password,
+    };
+
+    let response = client
+        .login(Request::new(req))
+        .await
+        .map_err(|e| AppErr::Other(e.into()))?;
+    let login_result = response.into_inner();
+
+    Ok(ResWrapper::success(login_result))
+}
+
+#[derive(Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegisterRequest {
+    pub emp_id: String,
+    pub user_name: String,
+    pub password: String,
+    pub email: String,
+    pub phone: String,
+    pub org_id: Option<u32>,
+    pub role: String,
+}
+
+pub async fn register(
+    State(appstate): State<AppState>,
+    Json(payload): Json<RegisterRequest>,
+) -> Result<ResWrapper<grpc_dsl::user::RegisterResponse>, AppErr> {
+    info!(
+        "register user via gRPC, username: {}",
+        payload.user_name
+    );
+
+    let mut client: GrpcClient = appstate.grpc_client.clone();
+    let req = RegisterUserRequest {
+        emp_id: payload.emp_id,
+        user_name: payload.user_name,
+        password: payload.password,
+        email: payload.email,
+        phone: payload.phone,
+        org_id: payload.org_id.unwrap_or(0),
+        role: payload.role,
+    };
+
+    let response = client
+        .register(Request::new(req))
+        .await
+        .map_err(|e| AppErr::Other(e.into()))?;
+    let register_result = response.into_inner();
+
+    Ok(ResWrapper::success(register_result))
+}
+
 pub async fn update_user(
     State(appstate): State<AppState>,
     Json(user): Json<HttpCreateUser>,
@@ -132,8 +213,12 @@ pub async fn update_user(
         id: user.id.unwrap(),
         emp_id: user.emp_id,
         user_name: user.user_name,
-        age: user.age as u32,
-        birthday: user.birthday,
+        password: user.password.clone(),
+        email: user.email.clone().unwrap_or_default(),
+        phone: user.phone.clone().unwrap_or_default(),
+        org_id: user.org_id.unwrap_or(0),
+        role: user.role.clone().unwrap_or("user".to_string()),
+        status: user.status.unwrap_or(1) as i32,
     };
 
     let response = client

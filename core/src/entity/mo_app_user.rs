@@ -9,27 +9,78 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: u32,
+    /**
+     * 员工编号
+     */
     pub emp_id: String,
+    /**
+     * 用户名
+     */
     pub user_name: String,
-    pub org_id: Option<i64>,
-    pub age: Option<u8>,
-    pub birthday: Option<String>,
+    /**
+     * 加密后的密码
+     */
+    pub password: String,
+    /**
+     * 邮箱
+     */
+    pub email: Option<String>,
+    /**
+     * 手机号
+     */
+    pub phone: Option<String>,
+    /**
+     * 组织id
+     */
+    pub org_id: Option<u32>,
+    /**
+     * 用户角色
+     */
+    pub role: Option<String>,
+    /**
+     * 用户状态：1-激活，0-禁用
+     */
+    pub status: Option<i8>,
+    /**
+     * 最后登录时间
+     */
     #[serde(
         serialize_with = "serialize_naive",
         deserialize_with = "deserialize_naive"
     )]
-    pub create_time: Option<NaiveDateTime>,
-    pub creater_id: Option<String>,
+    pub last_login_time: Option<NaiveDateTime>,
+    /**
+     * 创建时间
+     */
     #[serde(
         serialize_with = "serialize_naive",
         deserialize_with = "deserialize_naive"
     )]
-    pub update_time: Option<NaiveDateTime>,
-    pub updater_id: Option<String>,
+    pub created_at: Option<NaiveDateTime>,
+    pub created_by: Option<String>,
+    #[serde(
+        serialize_with = "serialize_naive",
+        deserialize_with = "deserialize_naive"
+    )]
+    pub updated_at: Option<NaiveDateTime>,
+    pub updated_by: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::mo_gl_org::Entity",
+        from = "Column::OrgId",
+        to = "super::mo_gl_org::Column::Id"
+    )]
+    Org,
+}
+
+impl Related<super::mo_gl_org::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Org.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 
@@ -39,8 +90,31 @@ pub struct CreateUser {
     pub id: Option<u32>,
     pub emp_id: String,
     pub user_name: String,
-    pub age: u8,
-    pub birthday: String,
+    pub password: String,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub org_id: Option<u32>,
+    pub role: Option<String>,
+    pub status: Option<i8>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LoginUser {
+    pub user_name: String,
+    pub password: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct UserInfo {
+    pub id: u32,
+    pub emp_id: String,
+    pub user_name: String,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub org_id: Option<u32>,
+    pub role: Option<String>,
 }
 
 impl std::fmt::Display for Model {
@@ -50,6 +124,18 @@ impl std::fmt::Display for Model {
 }
 
 impl std::fmt::Display for CreateUser {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", serde_json::to_string_pretty(&self).unwrap())
+    }
+}
+
+impl std::fmt::Display for LoginUser {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", serde_json::to_string_pretty(&self).unwrap())
+    }
+}
+
+impl std::fmt::Display for UserInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", serde_json::to_string_pretty(&self).unwrap())
     }

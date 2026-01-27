@@ -18,9 +18,15 @@ impl From<AddOrgRequest> for Org {
     fn from(req: AddOrgRequest) -> Self {
         Org {
             id: req.id,
-            org_code: req.org_code,
-            org_name: req.org_name,
-            update_time: Some(Utc::now().naive_local()),
+            code: req.org_code,
+            name: req.org_name,
+            parent_id: 0, // 默认父部门ID
+            deleted: false, // 默认未删除
+            deleted_at: None,
+            created_by: None,
+            updated_by: None,
+            created_at: Some(Utc::now().naive_local()),
+            updated_at: Some(Utc::now().naive_local()),
         }
     }
 }
@@ -29,9 +35,9 @@ impl From<Org> for OrgData {
     fn from(org: Org) -> Self {
         OrgData {
             id: org.id,
-            org_code: org.org_code,
-            org_name: org.org_name,
-            update_time: org.update_time
+            org_code: org.code,
+            org_name: org.name,
+            update_time: org.updated_at
             .and_then(|t| Some(t.and_utc().timestamp_millis())).unwrap_or(0i64),
         }
     }

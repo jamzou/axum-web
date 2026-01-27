@@ -3,6 +3,7 @@ mod dao;
 mod db;
 mod entity;
 mod service;
+mod utils;
 use grpc_dsl::org::org_service_server::OrgServiceServer;
 use reqwest::Client;
 use sea_orm::DatabaseConnection;

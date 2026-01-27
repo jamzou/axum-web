@@ -17,7 +17,7 @@ use reqwest::Client;
 type GrpcClient = grpc_dsl::user::user_service_client::UserServiceClient<Channel>;
 
 use crate::context::appstate::AppState;
-use crate::controller::user::{add_user, delete_user, query_user, query_user_by_id, update_user};
+use crate::controller::user::{add_user, delete_user, query_user, query_user_by_id, update_user, login, register};
 
 #[derive(serde::Deserialize, Clone)]
 struct ConsulService {
@@ -96,7 +96,13 @@ async fn main() {
         .route("/update_user", post(update_user))
         .route("/query_user_by_id", post(query_user_by_id));
 
-    let api_routes = Router::new().nest("/user", user_routes);
+    let auth_routes = Router::new()
+        .route("/login", post(login))
+        .route("/register", post(register));
+
+    let api_routes = Router::new()
+        .nest("/user", user_routes)
+        .nest("/auth", auth_routes);
 
     let app = Router::new()
         .nest("/api", api_routes)

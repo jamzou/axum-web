@@ -7,21 +7,59 @@ message AddUserRequest {
   uint32 id = 1; // 0 表示新建，其余表示更新
   string emp_id = 2;
   string user_name = 3;
-  uint32 age = 4;
-  string birthday = 5;
+  string password = 4;
+  string email = 5;
+  string phone = 6;
+  uint32 org_id = 7;
+  string role = 8;
+  int32 status = 9;
 }
 
+message LoginUserRequest {
+  string user_name = 1;
+  string password = 2;
+}
+
+message RegisterUserRequest {
+  string emp_id = 1;
+  string user_name = 2;
+  string password = 3;
+  string email = 4;
+  string phone = 5;
+  uint32 org_id = 6;
+  string role = 7;
+}
+
+message LoginResponse {
+  bool success = 1;
+  string message = 2;
+  string access_token = 3;
+  string refresh_token = 4;
+  uint32 user_id = 5;
+  string user_name = 6;
+  string role = 7;
+}
+
+message RegisterResponse {
+  bool success = 1;
+  string message = 2;
+  uint32 user_id = 3;
+}
 
 message UserData {
   uint32 id = 1;
   string emp_id = 2;
   string user_name = 3;
-  uint32 age = 4;
-  string birthday = 5;
-  int64 create_time = 6;
-  int64 update_time = 7;
+  string email = 4;
+  string phone = 5;
+  uint32 org_id = 6;
+  string role = 7;
+  int32 status = 8;
+  int64 last_login_time = 9;
+  int64 create_time = 10;
+  int64 update_time = 11;
   // 👇 嵌套 OrgData
-  org.OrgData org_data = 8;  // 注意：tag number 要唯一（这里用 8）
+  org.OrgData org_data = 12;  // 注意：tag number 要唯一（这里用 12）
 }
 
 message UserListResponse {
@@ -39,4 +77,6 @@ service UserService {
   rpc GetUserById(common.IdRequest) returns (UserResponse);
   rpc DeleteUser(common.IdRequest) returns (common.RowsAffected);
   rpc UpdateUser(AddUserRequest) returns (common.RowsAffected);
+  rpc Login(LoginUserRequest) returns (LoginResponse);
+  rpc Register(RegisterUserRequest) returns (RegisterResponse);
 }
