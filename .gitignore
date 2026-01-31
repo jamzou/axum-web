@@ -4,3 +4,8 @@ Cargo.lock
 .vscode
 .idea
 .DS_Store
+/.qoder
+/oauth-frontend/node_modules
+/logs
+/*/logs
+/*/target
